@@ -1,33 +1,39 @@
-name: Auto Generate Clash Config
+name: Auto Crawl & Update Clash Subscription
 
+# 触发：手动运行 + 每天北京时间凌晨2点自动抓取更新
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+  schedule:
+    - cron: '0 18 * * *'
 
 jobs:
-  build-job:
+  crawl-and-build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository code
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install requests
+      - name: Install required package
         run: pip install requests -q
 
-      - name: Run Python script
+      - name: Execute crawl & convert script
         run: python main.py
-        continue-on-error: true  # 脚本报错不直接终止流程
+        continue-on-error: true
 
-      - name: Push generated file
+      - name: Commit & Push updated clash.yaml
         run: |
           git config --global user.name "actions-user"
           git config --global user.email "actions@github.com@users.noreply.github.com"
+          git add clash.yaml
+          # 无文件变更直接跳过提交，避免报错
+          git diff --cached --quiet || git commit -m "Auto update nodes $(date '+%Y-%m-%d')" && git push
           git add clash.yaml
           # 没有文件变更就直接退出，不报错
           git diff --cached --quiet || git commit -m "Update clash subscription" && git push
