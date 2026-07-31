@@ -9,29 +9,25 @@ jobs:
   build-job:
     runs-on: ubuntu-latest
     steps:
-      # 1. 拉取仓库代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2. 配置Python环境
-      - name: Setup Python 3.11
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
-      # 3. 安装依赖requests
-      - name: Install dependencies
-        run: pip install requests
+      - name: Install requests
+        run: pip install requests -q
 
-      # 4. 执行main.py脚本生成clash.yaml
       - name: Run Python script
         run: python main.py
+        continue-on-error: true  # 脚本报错不直接终止流程
 
-      # 5. 提交并推送回GitHub仓库
-      - name: Commit and push generated file
+      - name: Push generated file
         run: |
           git config --global user.name "actions-user"
           git config --global user.email "actions@github.com@users.noreply.github.com"
           git add clash.yaml
-          git commit -m "Automatically update clash subscription config"
-          git push
+          # 没有文件变更就直接退出，不报错
+          git diff --cached --quiet || git commit -m "Update clash subscription" && git push
