@@ -7,12 +7,11 @@ import urllib.parse
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 
-# 内置全网更新最频繁的优质节点池
+# 替换为可用公共订阅源（定期更新，可用性更高）
 SUBSCRIBE_URLS = [
-    "https://githubusercontent.com",
-    "https://githubusercontent.com",
-    "https://githubusercontent.com",
-    "https://githubusercontent.com"
+    "https://raw.fastgit.org/ermaozi/get_subscribe/main/subscribe/v2ray.txt",
+    "https://raw.fastgit.org/awesome-v2ray/v2ray-subscribe/main/sub",
+    "https://v2cross.com/subscribe/v2ray"
 ]
 
 def extract_server(node):
@@ -23,51 +22,69 @@ def extract_server(node):
             return config.get("add")
         elif node.startswith("vless://") or node.startswith("trojan://"):
             return urllib.parse.urlparse(node).netloc.split('@')[-1].split(':')[0]
-    except: return None
+    except:
+        return None
 
 def test_node(node):
     server = extract_server(node)
-    if not server: return None
+    if not server:
+        return None
     try:
-        # 在 GitHub 的 Linux 环境下发送 1 个 ping 包，超时 2 秒
-        res = subprocess.run(['ping', '-c', '1', '-w', '2', server], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        if res.returncode == 0: return node
-    except: pass
+        # GitHub Actions Linux 环境 ping 检测存活
+        res = subprocess.run(['ping', '-c', '1', '-w', '2', server],
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+        if res.returncode == 0:
+            return node
+    except:
+        pass
     return None
 
 def run():
     all_nodes = []
     for url in SUBSCRIBE_URLS:
         try:
-            res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
-            if res.status_code != 200: continue
+            res = requests.get(url, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }, timeout=15)
+            if res.status_code != 200:
+                continue
             text = res.text.strip()
+            # 尝试base64解码订阅内容
             try:
                 text += '=' * (-len(text) % 4)
                 text = base64.b64decode(text).decode('utf-8', errors='ignore')
-            except: pass
+            except Exception:
+                pass
+            # 正则匹配三种节点链接
             nodes = re.findall(r'(vless://[^\s\"\'\<]+|vmess://[^\s\"\'\<]+|trojan://[^\s\"\'\<]+)', text)
             all_nodes.extend(nodes)
-        except: pass
-        
+        except Exception as e:
+            continue
+
+    # 去重
     unique_nodes = list(set(all_nodes))
     alive_nodes = []
-    
-    # GitHub 服务器性能强劲，直接拉满 50 线程并发测活
-    with ThreadPoolExecutor(max_workers=50) as executor:
+
+    # 并发测速存活检测
+    with ThreadPoolExecutor(max_workers=30) as executor:
         results = executor.map(test_node, unique_nodes)
         for r in results:
-            if r: alive_nodes.append(r)
-            
+            if r:
+                alive_nodes.append(r)
+
+    # 创建文件夹并写入文件
     os.makedirs("sub", exist_ok=True)
-    # 生成明文格式订阅（给手机 NekoBox、v2rayNG 剪贴板用）
+    content_plain = "\n".join(alive_nodes)
+    # 明文txt
     with open("sub/txt.txt", "w", encoding="utf-8") as f:
-        f.write("\n".join(alive_nodes))
-    # 生成标准的 Base64 加密订阅（直接作为客户端自动更新链接）
+        f.write(content_plain)
+    # base64编码订阅
+    b64_content = base64.b64encode(content_plain.encode('utf-8')).decode('utf-8')
     with open("sub/b64.txt", "w", encoding="utf-8") as f:
-        f.write(base64.b64encode("\n".join(alive_nodes).encode('utf-8')).decode('utf-8'))
-        
-    print(f"抓取完毕！共找到 {len(unique_nodes)} 个节点，测活存活 {len(alive_nodes)} 个。")
+        f.write(b64_content)
+
+    print(f"✅ 抓取完成：总量{len(unique_nodes)}，存活可用{len(alive_nodes)}")
 
 if __name__ == "__main__":
     run()
