@@ -1,0 +1,6 @@
+# 转换接口异常
+mixed-port: 7890
+allow-lan: true
+mode: rule
+rules:
+  - MATCH,DIRECT
