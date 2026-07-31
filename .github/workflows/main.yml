@@ -2,19 +2,18 @@ name: Auto Fetch Nodes
 
 on:
   schedule:
-    # 国际标准时间每 6 小时自动运行一次（对应北京时间每天 2:00, 8:00, 14:00, 20:00）
     - cron: '0 */6 * * *'
-  workflow_dispatch: # 允许你随时手动点击按钮触发运行
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # 升级到 v4，彻底解决 Node.js 报错
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5 # 升级到 v5，适配最新环境
       with:
         python-version: '3.10'
 
