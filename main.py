@@ -1,38 +1,33 @@
 import requests
 import os
 
-# ========== 1、粘贴你的所有节点，一行一条 ==========
+# 在这里粘贴你真实节点，一行一个
 node_list = """
 vless://xxx
 vmess://xxx
 trojan://xxx
 """
 
-def convert_to_clash_yaml(raw_links: str) -> str:
-    """调用公开订阅转换接口，转为Clash配置"""
-    api_url = "https://sub.xfxb.net/api/sub"
-    params = {
+def convert_clash(raw_text):
+    api = "https://sub.xfxb.net/api/sub"
+    param = {
         "target": "clashmeta",
-        "url": raw_links,
+        "url": raw_text,
         "config": "https://cdn.jsdelivr.net/gh/CareyWang/sub-web/configs/clashmeta.ini"
     }
     try:
-        resp = requests.get(api_url, params=params, timeout=15)
-        resp.raise_for_status()
-        return resp.text
-    except Exception as e:
-        print("转换失败：", e)
-        return ""
+        res = requests.get(api, params=param, timeout=20)
+        res.raise_for_status()
+        return res.text
+    except Exception as err:
+        print("转换失败:", err)
+        return "# 转换接口异常\nmixed-port: 7890\nallow-lan: true\nmode: rule\nrules:\n  - MATCH,DIRECT"
 
 if __name__ == "__main__":
-    # 清理换行空格
-    clean_nodes = node_list.strip()
-    # 转换
-    clash_config = convert_to_clash_yaml(clean_nodes)
+    content = node_list.strip()
+    clash_data = convert_clash(content)
 
-    # 写入文件到仓库根目录 clash.yaml
-    os.makedirs("output", exist_ok=True)
+    # 写入根目录clash.yaml
     with open("clash.yaml", "w", encoding="utf-8") as f:
-        f.write(clash_config)
-
-    print("✅ 已生成 clash.yaml Clash 专用配置文件")
+        f.write(clash_data)
+    print("clash.yaml 生成完毕")
